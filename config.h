@@ -3,6 +3,8 @@
 #define KEYSIZE 50
 // Padding around each key (pixels)
 #define KEYPAD 5
+// Default pos (0, 1, 2, 3 clockwise from top left)
+#define POS 3
 // Color used for background pixel of window (ARGB)
 #define CBG 0x00000000
 // Color used for the color of text (ARGB)
