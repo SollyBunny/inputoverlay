@@ -2,8 +2,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "include.h"
-#include "conf.h"
+#include <X11/X.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/XKBlib.h>
+#include <X11/Xft/Xft.h>
+
+typedef struct {
+	unsigned int x;
+	unsigned int y;
+	unsigned int w;
+	unsigned int h;
+	unsigned int bind;
+	char        *disp;
+	unsigned int dispsize;
+	unsigned int dispw;
+	unsigned int disph;
+	unsigned int pressed;
+} Bind;
+
+#include "config.h"
 
 Display      *disp;
 int           scre;
@@ -46,64 +64,72 @@ void changefocus() {
 int main(void) {
 
 	// Init X11
-		XSetErrorHandler(xerrorhandle);
+		//XSetErrorHandler(xerrorhandle);
 		disp = XOpenDisplay(NULL);
 		root = XDefaultRootWindow(disp);
 		scre = XDefaultScreen(disp);
-
-		// convert keysym into arbritrary keyboard keys
-		// convert arbritrary x and y values into actuall pixel coordinates
-			for (unsigned int i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
+		XkbSetDetectableAutoRepeat(disp, True, NULL);
+	// Setup visual / attrs
+		XVisualInfo visual;
+		XMatchVisualInfo(disp, scre, 32, TrueColor, &visual);
+		XSetWindowAttributes attr;
+		attr.border_pixel     = 0;
+		attr.background_pixel = CBG;
+	    attr.colormap         = XCreateColormap(disp, root, visual.visual, None);
+	    attr.bit_gravity      = NorthWestGravity;
+		attr.event_mask       = ExposureMask;
+	// Setup font
+		XftFont *xftfont = XftFontOpenName(disp, scre, FONT);
+		if (!xftfont) die("Failed to open font \"" FONT "\"");
+	// Setup keys
+		for (unsigned int i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
+			// Convert keysym to keycode
 				keys[i].bind = XKeysymToKeycode(disp, keys[i].bind);
-				keys[i].x = (keypadding * (keys[i].x + 1)) + (keys[i].x * keysize);
-				keys[i].y = (keypadding * (keys[i].y + 1)) + (keys[i].y * keysize);
-				if (keys[i].x > maxx) maxx = keys[i].x;
-				if (keys[i].y > maxy) maxy = keys[i].y;
-			}
-			maxx += keypadding + keysize;
-			maxy += keypadding + keysize;
-		// Create window
-			XVisualInfo visual;
-			XMatchVisualInfo(disp, scre, 32, TrueColor, &visual);
-			XSetWindowAttributes attr;
-			attr.border_pixel     = 0;
-			attr.background_pixel = CBG;
-		    attr.colormap         = XCreateColormap(disp, root, visual.visual, None);
-		    attr.bit_gravity      = NorthWestGravity;
-			attr.event_mask       = ExposureMask;
-			wind = XCreateWindow(
-				disp, root,
-				0, 0, maxx, maxy,
-				0,
-				visual.depth,
-				InputOutput,
-				visual.visual,
-				CWBackPixel | CWBorderPixel | CWBitGravity | CWEventMask | CWColormap,
-				&attr
-			);
-					
-			XStoreName(disp, wind, NAME);
-			// Create drawing context + set fg/bg colors
-			GC gc = XCreateGC(disp, wind, 0, 0);
-			XMapWindow(disp, wind);
-			XSync(disp, False);
-			changefocus();
-		
-	XftFont *xftfont = XftFontOpenName(disp, scre, FONT);
-	if (!xftfont) die("Failed to open font \"" FONT "\"");
-	XftDraw *xftgc = XftDrawCreate(disp, wind, visual.visual, attr.colormap);
-	if (!xftgc) die("cannot allocate xft color\n");
-	XftColor xftcol;
-	xftcol.pixel = CFG;
-	xftcol.color.red   = (CFG & 255) << 8;
-	xftcol.color.green = ((CFG >> 8) & 255) << 8;
-	xftcol.color.blue  = ((CFG >> 16) & 255) << 8;
-	xftcol.color.alpha = ((CFG >> 24) & 255) << 8;
+			// Calculate true x, y, w, h values
+				keys[i].x = keys[i].x + KEYPAD;
+				keys[i].y = keys[i].y + KEYPAD;
+				if (keys[i].x + keys[i].w > maxx) maxx = keys[i].x + keys[i].w; // expand window if neccesary
+				if (keys[i].y + keys[i].h > maxy) maxy = keys[i].y + keys[i].h;
+				keys[i].w -= KEYPAD;
+				keys[i].h -= KEYPAD;
+			// Calculate string size of disp
+				static char *p;
+				for (p = keys[i].disp; *p != '\0'; ++p)
+					keys[i].dispsize += 1;
+			// Calculate visual size of disp
+				static XGlyphInfo extents;
+				XftTextExtentsUtf8(disp, xftfont, (FcChar8*)keys[i].disp, keys[i].dispsize, &extents);
+				keys[i].dispw = extents.width / 2;
+				keys[i].disph = extents.height / 2;
+		}
+	// Create window
+		wind = XCreateWindow(
+			disp, root,
+			0, 0, maxx, maxy,
+			0,
+			visual.depth,
+			InputOutput,
+			visual.visual,
+			CWBackPixel | CWBorderPixel | CWBitGravity | CWEventMask | CWColormap,
+			&attr
+		);
+		XStoreName(disp, wind, NAME);
+		XMapWindow(disp, wind);
+		XSync(disp, False);
+		XSelectInput(disp, wind, KeyPressMask | KeyReleaseMask | FocusChangeMask | ExposureMask);
+	// Setup GC
+		GC gc = XCreateGC(disp, wind, 0, 0);
+		XftDraw *xftgc = XftDrawCreate(disp, wind, visual.visual, attr.colormap);
+		if (!xftgc) die("Failed to create font GC\n");
+		XftColor xftcol;
+		xftcol.pixel = CFG;
+		xftcol.color.red   = (CFG & 255) << 8;
+		xftcol.color.green = ((CFG >> 8) & 255) << 8;
+		xftcol.color.blue  = ((CFG >> 16) & 255) << 8;
+		xftcol.color.alpha = ((CFG >> 24) & 255) << 8;
 
-	FcChar8 *xfttext = malloc(2 * sizeof(FcChar8));
-	xfttext[1] = '\0';
-
-	XEvent e;
+	XSync(disp, False);
+	static XEvent e;
 	while (!XNextEvent(disp, &e)) {
 		switch (e.type) {
 			case DestroyNotify:
@@ -117,45 +143,44 @@ int main(void) {
 					if (e.xkey.keycode == XKeysymToKeycode(disp, XK_F4)) goto end;
 				#endif
 			case KeyRelease:
-				unsigned int flag = 0;
-				for (unsigned int i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
+				static unsigned int i;
+				for (i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
 					if (keys[i].bind == e.xkey.keycode) {
-						// printf("Got key %d!\n", e.xkey.keycode);
+						if (keys[i].pressed == e.type) break; // don't render if key is already (un)pressed
+						// printf("Got key %d %d!\n", e.type, e.xkey.keycode);
 						keys[i].pressed = e.type;
-						flag = 1;
-						break;
+						goto l_expose;
 					}
 				}
-				if (flag == 0) break; // don't render if nothing changed
-			case Expose:
+				break;
+			case Expose: l_expose:
 				XClearWindow(disp, wind);
 				for (unsigned int i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
 					XSetForeground(disp, gc, keys[i].pressed == KeyPress ? CBP : CBR);
 					XFillRectangle(
 						disp, wind, gc, 
 						keys[i].x, keys[i].y,
-						keysize, keysize
+						keys[i].w, keys[i].h
 					);
-					xfttext[0] = keys[i].disp;
 					XftDrawStringUtf8(
-						xftgc, 
-						&xftcol, xftfont, 
-						keys[i].x + (FONTSIZE / 2), keys[i].y + keysize - (FONTSIZE / 2),
-						xfttext, 1//sizeof(xfttext) / sizeof(xfttext[0])
+						xftgc, &xftcol, xftfont, 
+						keys[i].x + keys[i].w / 2 - keys[i].dispw, keys[i].y + keys[i].h - keys[i].disph,
+						(FcChar8*)keys[i].disp, keys[i].dispsize
 					);
 				}
 				break;
-		
 		}
 
 	}
 
 	end: // free stuff
 
-		free(xfttext);
+		XUnmapWindow(disp, wind);
+
 		XftFontClose(disp, xftfont);
 		XftDrawDestroy(xftgc);
-
+		
+		XFreeGC(disp, gc);
 		XDestroyWindow(disp, wind);
 		XCloseDisplay(disp);
 	
