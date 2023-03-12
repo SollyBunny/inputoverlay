@@ -64,7 +64,7 @@ void changefocus() {
 int main(void) {
 
 	// Init X11
-		//XSetErrorHandler(xerrorhandle);
+		XSetErrorHandler(xerrorhandle);
 		disp = XOpenDisplay(NULL);
 		root = XDefaultRootWindow(disp);
 		scre = XDefaultScreen(disp);
