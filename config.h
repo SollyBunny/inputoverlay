@@ -3,6 +3,8 @@
 #define KEYSIZE 50
 // Padding around each key (pixels)
 #define KEYPAD 5
+// Default pos (0, 1, 2, 3 clockwise from top left)
+#define POS 1
 // Color used for background pixel of window (ARGB)
 #define CBG 0x00000000
 // Color used for the color of text (ARGB)
@@ -15,8 +17,6 @@
 #define FONT "SourceCodePro-ExtraLight:pixelsize=30:antialias=false:autohint=true"
 // The name of the window
 #define NAME "Celeste Keys"
-// If should attempt to keep ontop (requires a wm which allows `XRaiseWindow`)  
-#define ONTOP
 // If should exit on F4
 // #define F4EXIT
 

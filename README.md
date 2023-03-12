@@ -4,14 +4,14 @@ When you want input overlay but can't be asked to use OBS but can be asked to us
 ## Config
 Config can be found in `config.h`
 `KEYSIZE`: Size of each key including padding (pixels)  
-`KEYPAD`: Padding around each key (pixels)
+`KEYPAD`: Padding around each key (pixels)  
+`POS`: Default pos (0, 1, 2, 3 clockwise from top left)  
 `CBG`: Color used for background pixel of window (ARGB)  
 `CFG`: Color used for the color of text (ARGB)  
 `CBR`: Color used for the background of buttons (ARGB)  
 `CBP`: Color used for the background of buttons when pressed (ARGB)  
 `FONT`: The `Xft` font to use  
 `NAME`: The name of the window  
-`ONTOP`: If should attempt to keep ontop (requires a wm which allows `XRaiseWindow`)  
 `F4EXIT`: If should exit on `F4`  
 
 ### Binds
