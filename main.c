@@ -103,21 +103,6 @@ int main(void) {
 				keys[i].disph = extents.height / 2;
 		}
 	// Create window
-		#if POS == 0
-			X = 0
-			Y = 0
-		#elif POS == 1
-			X = XDisplayWidth(disp, scre) - maxx;
-			Y = 0
-		#elif POS == 2
-			X = XDisplayWidth(disp, scre) - maxx;
-			Y = XDisplayHeight(disp, scre) - maxy;
-		#elif POS == 3
-			X = 0;
-			Y = XDisplayHeight(disp, scre) - maxy;
-		#else
-			#error "Invalid POS value"
-		#endif
 		wind = XCreateWindow(
 			disp, root,
 			0, 0, maxx, maxy,
